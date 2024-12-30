@@ -17,15 +17,15 @@ llmcord turns Discord into a collaborative LLM frontend. It works with practical
 ### Reply-based chat system
 Just @ the bot to start a conversation and reply to continue. Build conversations with reply chains!
 
-You can do things like:
-- Continue your own conversation or someone else's
-- "Rewind" a conversation by simply replying to an older message
-- @ the bot while replying to any message in your server to ask a question about it
+You can:
+- Branch conversations endlessly
+- Continue other people's conversations
+- @ the bot while replying to ANY message to include it in the conversation
 
 Additionally:
-- Back-to-back messages from the same user are automatically chained together. Just reply to the latest one and the bot will see all of them.
-- You can seamlessly move any conversation into a [thread](https://support.discord.com/hc/en-us/articles/4403205878423-Threads-FAQ). Just create a thread from any message and @ the bot inside to continue.
 - When DMing the bot, conversations continue automatically (no reply required). To start a fresh conversation, just @ the bot. You can still reply to continue from anywhere.
+- You can branch conversations into [threads](https://support.discord.com/hc/en-us/articles/4403205878423-Threads-FAQ). Just create a thread from any message and @ the bot inside to continue.
+- Back-to-back messages from the same user are automatically chained together. Just reply to the latest one and the bot will see all of them.
 
 ### Choose any LLM
 llmcord supports remote models from:
