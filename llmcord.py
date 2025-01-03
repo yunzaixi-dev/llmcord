@@ -204,42 +204,44 @@ async def on_message(new_msg):
                 prev_content = prev_chunk.choices[0].delta.content if prev_chunk != None and prev_chunk.choices[0].delta.content else ""
                 curr_content = curr_chunk.choices[0].delta.content or ""
 
-                if response_contents or prev_content:
-                    if response_contents == [] or len(response_contents[-1] + prev_content) > max_message_length:
-                        response_contents.append("")
+                prev_chunk = curr_chunk
 
-                        if not use_plain_responses:
-                            embed = discord.Embed(description=(prev_content + STREAMING_INDICATOR), color=EMBED_COLOR_INCOMPLETE)
-                            for warning in sorted(user_warnings):
-                                embed.add_field(name=warning, value="", inline=False)
+                if not (response_contents or prev_content):
+                    continue
 
-                            reply_to_msg = new_msg if response_msgs == [] else response_msgs[-1]
-                            response_msg = await reply_to_msg.reply(embed=embed, silent=True)
-                            msg_nodes[response_msg.id] = MsgNode(next_msg=new_msg)
-                            await msg_nodes[response_msg.id].lock.acquire()
-                            response_msgs.append(response_msg)
-                            last_task_time = dt.now().timestamp()
-
-                    response_contents[-1] += prev_content
+                if response_contents == [] or len(response_contents[-1] + prev_content) > max_message_length:
+                    response_contents.append("")
 
                     if not use_plain_responses:
-                        finish_reason = curr_chunk.choices[0].finish_reason
+                        embed = discord.Embed(description=(prev_content + STREAMING_INDICATOR), color=EMBED_COLOR_INCOMPLETE)
+                        for warning in sorted(user_warnings):
+                            embed.add_field(name=warning, value="", inline=False)
 
-                        ready_to_edit = (edit_task == None or edit_task.done()) and dt.now().timestamp() - last_task_time >= EDIT_DELAY_SECONDS
-                        msg_split_incoming = len(response_contents[-1] + curr_content) > max_message_length
-                        is_final_edit = finish_reason != None or msg_split_incoming
-                        is_good_finish = finish_reason != None and any(finish_reason.lower() == x for x in ("stop", "end_turn"))
+                        reply_to_msg = new_msg if response_msgs == [] else response_msgs[-1]
+                        response_msg = await reply_to_msg.reply(embed=embed, silent=True)
+                        msg_nodes[response_msg.id] = MsgNode(next_msg=new_msg)
+                        await msg_nodes[response_msg.id].lock.acquire()
+                        response_msgs.append(response_msg)
+                        last_task_time = dt.now().timestamp()
 
-                        if ready_to_edit or is_final_edit:
-                            if edit_task != None:
-                                await edit_task
+                response_contents[-1] += prev_content
 
-                            embed.description = response_contents[-1] if is_final_edit else (response_contents[-1] + STREAMING_INDICATOR)
-                            embed.color = EMBED_COLOR_COMPLETE if msg_split_incoming or is_good_finish else EMBED_COLOR_INCOMPLETE
-                            edit_task = asyncio.create_task(response_msgs[-1].edit(embed=embed))
-                            last_task_time = dt.now().timestamp()
+                if not use_plain_responses:
+                    finish_reason = curr_chunk.choices[0].finish_reason
 
-                prev_chunk = curr_chunk
+                    ready_to_edit = (edit_task == None or edit_task.done()) and dt.now().timestamp() - last_task_time >= EDIT_DELAY_SECONDS
+                    msg_split_incoming = len(response_contents[-1] + curr_content) > max_message_length
+                    is_final_edit = finish_reason != None or msg_split_incoming
+                    is_good_finish = finish_reason != None and any(finish_reason.lower() == x for x in ("stop", "end_turn"))
+
+                    if ready_to_edit or is_final_edit:
+                        if edit_task != None:
+                            await edit_task
+
+                        embed.description = response_contents[-1] if is_final_edit else (response_contents[-1] + STREAMING_INDICATOR)
+                        embed.color = EMBED_COLOR_COMPLETE if msg_split_incoming or is_good_finish else EMBED_COLOR_INCOMPLETE
+                        edit_task = asyncio.create_task(response_msgs[-1].edit(embed=embed))
+                        last_task_time = dt.now().timestamp()
 
         if use_plain_responses:
             for content in response_contents:
