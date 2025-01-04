@@ -154,7 +154,7 @@ async def on_message(new_msg):
                             else:
                                 curr_node.next_msg = curr_msg.reference.cached_message or await curr_msg.channel.fetch_message(next_msg_id)
 
-                except (discord.NotFound, discord.HTTPException, AttributeError):
+                except (discord.NotFound, discord.HTTPException):
                     logging.exception("Error fetching next message in the chain")
                     curr_node.fetch_next_failed = True
 
@@ -250,7 +250,8 @@ async def on_message(new_msg):
                     msg_nodes[response_msg.id] = MsgNode(next_msg=new_msg)
                     await msg_nodes[response_msg.id].lock.acquire()
                     response_msgs.append(response_msg)
-    except:
+
+    except Exception:
         logging.exception("Error while generating response")
 
     for response_msg in response_msgs:
