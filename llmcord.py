@@ -243,13 +243,13 @@ async def on_message(new_msg):
                         edit_task = asyncio.create_task(response_msgs[-1].edit(embed=embed))
                         last_task_time = dt.now().timestamp()
 
-        if use_plain_responses:
-            for content in response_contents:
-                reply_to_msg = new_msg if response_msgs == [] else response_msgs[-1]
-                response_msg = await reply_to_msg.reply(content=content, suppress_embeds=True)
-                msg_nodes[response_msg.id] = MsgNode(next_msg=new_msg)
-                await msg_nodes[response_msg.id].lock.acquire()
-                response_msgs.append(response_msg)
+            if use_plain_responses:
+                for content in response_contents:
+                    reply_to_msg = new_msg if response_msgs == [] else response_msgs[-1]
+                    response_msg = await reply_to_msg.reply(content=content, suppress_embeds=True)
+                    msg_nodes[response_msg.id] = MsgNode(next_msg=new_msg)
+                    await msg_nodes[response_msg.id].lock.acquire()
+                    response_msgs.append(response_msg)
     except:
         logging.exception("Error while generating response")
 
