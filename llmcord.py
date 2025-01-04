@@ -219,9 +219,11 @@ async def on_message(new_msg):
 
                         reply_to_msg = new_msg if response_msgs == [] else response_msgs[-1]
                         response_msg = await reply_to_msg.reply(embed=embed, silent=True)
+                        response_msgs.append(response_msg)
+
                         msg_nodes[response_msg.id] = MsgNode(next_msg=new_msg)
                         await msg_nodes[response_msg.id].lock.acquire()
-                        response_msgs.append(response_msg)
+
                         last_task_time = dt.now().timestamp()
 
                 response_contents[-1] += prev_content
@@ -247,9 +249,10 @@ async def on_message(new_msg):
                 for content in response_contents:
                     reply_to_msg = new_msg if response_msgs == [] else response_msgs[-1]
                     response_msg = await reply_to_msg.reply(content=content, suppress_embeds=True)
+                    response_msgs.append(response_msg)
+
                     msg_nodes[response_msg.id] = MsgNode(next_msg=new_msg)
                     await msg_nodes[response_msg.id].lock.acquire()
-                    response_msgs.append(response_msg)
 
     except Exception:
         logging.exception("Error while generating response")
