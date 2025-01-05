@@ -242,7 +242,9 @@ async def on_message(new_msg):
 
                         embed.description = response_contents[-1] if is_final_edit else (response_contents[-1] + STREAMING_INDICATOR)
                         embed.color = EMBED_COLOR_COMPLETE if msg_split_incoming or is_good_finish else EMBED_COLOR_INCOMPLETE
+
                         edit_task = asyncio.create_task(response_msgs[-1].edit(embed=embed))
+
                         last_task_time = dt.now().timestamp()
 
             if use_plain_responses:
