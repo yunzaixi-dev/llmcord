@@ -140,7 +140,7 @@ async def on_message(new_msg):
                         not curr_msg.reference
                         and discord_client.user.mention not in curr_msg.content
                         and (prev_msg_in_channel := ([m async for m in curr_msg.channel.history(before=curr_msg, limit=1)] or [None])[0])
-                        and any(prev_msg_in_channel.type == type for type in (discord.MessageType.default, discord.MessageType.reply))
+                        and prev_msg_in_channel.type in (discord.MessageType.default, discord.MessageType.reply)
                         and prev_msg_in_channel.author == (discord_client.user if curr_msg.channel.type == discord.ChannelType.private else curr_msg.author)
                     ):
                         curr_node.next_msg = prev_msg_in_channel
@@ -234,7 +234,7 @@ async def on_message(new_msg):
                     ready_to_edit = (edit_task == None or edit_task.done()) and dt.now().timestamp() - last_task_time >= EDIT_DELAY_SECONDS
                     msg_split_incoming = len(response_contents[-1] + curr_content) > max_message_length
                     is_final_edit = finish_reason != None or msg_split_incoming
-                    is_good_finish = finish_reason != None and any(finish_reason.lower() == x for x in ("stop", "end_turn"))
+                    is_good_finish = finish_reason != None and finish_reason.lower() in ("stop", "end_turn")
 
                     if ready_to_edit or is_final_edit:
                         if edit_task != None:
