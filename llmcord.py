@@ -47,7 +47,7 @@ discord_client = discord.Client(intents=intents, activity=activity)
 httpx_client = httpx.AsyncClient()
 
 msg_nodes = {}
-last_task_time = None
+last_task_time = 0
 
 
 @dataclass
@@ -197,6 +197,10 @@ async def on_message(new_msg):
     prev_chunk = None
     edit_task = None
 
+    embed = discord.Embed()
+    for warning in sorted(user_warnings):
+        embed.add_field(name=warning, value="", inline=False)
+
     kwargs = dict(model=model, messages=messages[::-1], stream=True, extra_body=cfg["extra_api_parameters"])
     try:
         async with new_msg.channel.typing():
@@ -209,22 +213,8 @@ async def on_message(new_msg):
                 if not (response_contents or prev_content):
                     continue
 
-                if response_contents == [] or len(response_contents[-1] + prev_content) > max_message_length:
+                if start_next_msg := response_contents == [] or len(response_contents[-1] + prev_content) > max_message_length:
                     response_contents.append("")
-
-                    if not use_plain_responses:
-                        embed = discord.Embed(description=(prev_content + STREAMING_INDICATOR), color=EMBED_COLOR_INCOMPLETE)
-                        for warning in sorted(user_warnings):
-                            embed.add_field(name=warning, value="", inline=False)
-
-                        reply_to_msg = new_msg if response_msgs == [] else response_msgs[-1]
-                        response_msg = await reply_to_msg.reply(embed=embed, silent=True)
-                        response_msgs.append(response_msg)
-
-                        msg_nodes[response_msg.id] = MsgNode(next_msg=new_msg)
-                        await msg_nodes[response_msg.id].lock.acquire()
-
-                        last_task_time = dt.now().timestamp()
 
                 response_contents[-1] += prev_content
 
@@ -236,14 +226,22 @@ async def on_message(new_msg):
                     is_final_edit = finish_reason != None or msg_split_incoming
                     is_good_finish = finish_reason != None and finish_reason.lower() in ("stop", "end_turn")
 
-                    if ready_to_edit or is_final_edit:
+                    if start_next_msg or ready_to_edit or is_final_edit:
                         if edit_task != None:
                             await edit_task
 
                         embed.description = response_contents[-1] if is_final_edit else (response_contents[-1] + STREAMING_INDICATOR)
                         embed.color = EMBED_COLOR_COMPLETE if msg_split_incoming or is_good_finish else EMBED_COLOR_INCOMPLETE
 
-                        edit_task = asyncio.create_task(response_msgs[-1].edit(embed=embed))
+                        if start_next_msg:
+                            reply_to_msg = new_msg if response_msgs == [] else response_msgs[-1]
+                            response_msg = await reply_to_msg.reply(embed=embed, silent=True)
+                            response_msgs.append(response_msg)
+
+                            msg_nodes[response_msg.id] = MsgNode(next_msg=new_msg)
+                            await msg_nodes[response_msg.id].lock.acquire()
+                        else:
+                            edit_task = asyncio.create_task(response_msgs[-1].edit(embed=embed))
 
                         last_task_time = dt.now().timestamp()
 
