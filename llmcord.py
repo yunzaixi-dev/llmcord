@@ -114,15 +114,15 @@ async def on_message(new_msg):
 
         async with curr_node.lock:
             if curr_node.text == None:
+                cleaned_content = curr_msg.content.removeprefix(discord_client.user.mention).lstrip()
+
                 good_attachments = {type: [att for att in curr_msg.attachments if att.content_type and type in att.content_type] for type in ALLOWED_FILE_TYPES}
 
                 curr_node.text = "\n".join(
-                    ([curr_msg.content] if curr_msg.content else [])
+                    ([cleaned_content] if cleaned_content else [])
                     + [embed.description for embed in curr_msg.embeds if embed.description]
                     + [(await httpx_client.get(att.url)).text for att in good_attachments["text"]]
                 )
-                if curr_node.text.startswith(discord_client.user.mention):
-                    curr_node.text = curr_node.text.replace(discord_client.user.mention, "", 1).lstrip()
 
                 curr_node.images = [
                     dict(type="image_url", image_url=dict(url=f"data:{att.content_type};base64,{b64encode((await httpx_client.get(att.url)).content).decode('utf-8')}"))
