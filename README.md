@@ -10,7 +10,7 @@
   <img src="https://github.com/jakobdylanc/llmcord/assets/38699060/789d49fe-ef5c-470e-b60e-48ac03057443" alt="">
 </p>
 
-llmcord turns Discord into a collaborative LLM frontend. It works with practically any LLM, remote or locally hosted.
+llmcord transforms Discord into a collaborative LLM frontend. It works with practically any LLM, remote or locally hosted.
 
 ## Features
 
