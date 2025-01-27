@@ -75,19 +75,27 @@ async def on_message(new_msg):
     if (not is_dm and discord_client.user not in new_msg.mentions) or new_msg.author.bot:
         return
 
+    role_ids = tuple(role.id for role in getattr(new_msg.author, "roles", ()))
+    channel_ids = tuple(id for id in (new_msg.channel.id, getattr(new_msg.channel, "parent_id", None), getattr(new_msg.channel, "category_id", None)) if id)
+
     cfg = get_config()
 
     allow_dms = cfg["allow_dms"]
-    allowed_channel_ids = cfg["allowed_channel_ids"]
-    allowed_role_ids = cfg["allowed_role_ids"]
-    blocked_user_ids = cfg["blocked_user_ids"]
+    permissions = cfg["permissions"]
 
-    channel_ids = tuple(id for id in (new_msg.channel.id, getattr(new_msg.channel, "parent_id", None), getattr(new_msg.channel, "category_id", None)) if id)
+    (allowed_user_ids, blocked_user_ids), (allowed_role_ids, blocked_role_ids), (allowed_channel_ids, blocked_channel_ids) = (
+        (perm["allowed_ids"], perm["blocked_ids"]) for perm in (permissions["users"], permissions["roles"], permissions["channels"])
+    )
 
-    is_bad_channel = (is_dm and not allow_dms) or (not is_dm and allowed_channel_ids and not any(id in allowed_channel_ids for id in channel_ids))
-    is_bad_user = new_msg.author.id in blocked_user_ids or (allowed_role_ids and not any(role.id in allowed_role_ids for role in getattr(new_msg.author, "roles", [])))
+    allow_all_users = not allowed_user_ids if is_dm else not allowed_user_ids and not allowed_role_ids
+    is_good_user = allow_all_users or new_msg.author.id in allowed_user_ids or any(id in allowed_role_ids for id in role_ids)
+    is_bad_user = not is_good_user or new_msg.author.id in blocked_user_ids or any(id in blocked_role_ids for id in role_ids)
 
-    if is_bad_channel or is_bad_user:
+    allow_all_channels = not allowed_channel_ids
+    is_good_channel = allow_dms if is_dm else allow_all_channels or any(id in allowed_channel_ids for id in channel_ids)
+    is_bad_channel = not is_good_channel or any(id in blocked_channel_ids for id in channel_ids)
+
+    if is_bad_user or is_bad_channel:
         return
 
     provider, model = cfg["model"].split("/", 1)
