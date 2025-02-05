@@ -58,7 +58,7 @@ class MsgNode:
     role: Literal["user", "assistant"] = "assistant"
     user_id: Optional[int] = None
 
-    next_msg: Optional[discord.Message] = None
+    parent_msg: Optional[discord.Message] = None
 
     has_bad_attachments: bool = False
     fetch_next_failed: bool = False
@@ -151,16 +151,16 @@ async def on_message(new_msg):
                         and prev_msg_in_channel.type in (discord.MessageType.default, discord.MessageType.reply)
                         and prev_msg_in_channel.author == (discord_client.user if curr_msg.channel.type == discord.ChannelType.private else curr_msg.author)
                     ):
-                        curr_node.next_msg = prev_msg_in_channel
+                        curr_node.parent_msg = prev_msg_in_channel
                     else:
                         is_public_thread = curr_msg.channel.type == discord.ChannelType.public_thread
-                        next_is_parent_msg = not curr_msg.reference and is_public_thread and curr_msg.channel.parent.type == discord.ChannelType.text
+                        parent_is_thread_start = is_public_thread and not curr_msg.reference and curr_msg.channel.parent.type == discord.ChannelType.text
 
-                        if next_msg_id := curr_msg.channel.id if next_is_parent_msg else getattr(curr_msg.reference, "message_id", None):
-                            if next_is_parent_msg:
-                                curr_node.next_msg = curr_msg.channel.starter_message or await curr_msg.channel.parent.fetch_message(next_msg_id)
+                        if parent_msg_id := curr_msg.channel.id if parent_is_thread_start else getattr(curr_msg.reference, "message_id", None):
+                            if parent_is_thread_start:
+                                curr_node.parent_msg = curr_msg.channel.starter_message or await curr_msg.channel.parent.fetch_message(parent_msg_id)
                             else:
-                                curr_node.next_msg = curr_msg.reference.cached_message or await curr_msg.channel.fetch_message(next_msg_id)
+                                curr_node.parent_msg = curr_msg.reference.cached_message or await curr_msg.channel.fetch_message(parent_msg_id)
 
                 except (discord.NotFound, discord.HTTPException):
                     logging.exception("Error fetching next message in the chain")
@@ -184,10 +184,10 @@ async def on_message(new_msg):
                 user_warnings.add(f"⚠️ Max {max_images} image{'' if max_images == 1 else 's'} per message" if max_images > 0 else "⚠️ Can't see images")
             if curr_node.has_bad_attachments:
                 user_warnings.add("⚠️ Unsupported attachments")
-            if curr_node.fetch_next_failed or (curr_node.next_msg != None and len(messages) == max_messages):
+            if curr_node.fetch_next_failed or (curr_node.parent_msg != None and len(messages) == max_messages):
                 user_warnings.add(f"⚠️ Only using last {len(messages)} message{'' if len(messages) == 1 else 's'}")
 
-            curr_msg = curr_node.next_msg
+            curr_msg = curr_node.parent_msg
 
     logging.info(f"Message received (user ID: {new_msg.author.id}, attachments: {len(new_msg.attachments)}, conversation length: {len(messages)}):\n{new_msg.content}")
 
@@ -246,7 +246,7 @@ async def on_message(new_msg):
                             response_msg = await reply_to_msg.reply(embed=embed, silent=True)
                             response_msgs.append(response_msg)
 
-                            msg_nodes[response_msg.id] = MsgNode(next_msg=new_msg)
+                            msg_nodes[response_msg.id] = MsgNode(parent_msg=new_msg)
                             await msg_nodes[response_msg.id].lock.acquire()
                         else:
                             edit_task = asyncio.create_task(response_msgs[-1].edit(embed=embed))
@@ -259,7 +259,7 @@ async def on_message(new_msg):
                     response_msg = await reply_to_msg.reply(content=content, suppress_embeds=True)
                     response_msgs.append(response_msg)
 
-                    msg_nodes[response_msg.id] = MsgNode(next_msg=new_msg)
+                    msg_nodes[response_msg.id] = MsgNode(parent_msg=new_msg)
                     await msg_nodes[response_msg.id].lock.acquire()
 
     except Exception:
