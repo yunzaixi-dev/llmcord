@@ -224,7 +224,7 @@ async def on_message(new_msg):
 
                 finish_reason = curr_chunk.choices[0].finish_reason
 
-                new_content = (prev_content + curr_content) if finish_reason != None else prev_content
+                new_content = prev_content if finish_reason == None else (prev_content + curr_content)
 
                 if not response_contents and not new_content:
                     continue
