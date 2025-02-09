@@ -226,7 +226,7 @@ async def on_message(new_msg):
 
                 new_content = prev_content if finish_reason == None else (prev_content + curr_content)
 
-                if not response_contents and not new_content:
+                if response_contents == [] and new_content == "":
                     continue
 
                 if start_next_msg := response_contents == [] or len(response_contents[-1] + new_content) > max_message_length:
