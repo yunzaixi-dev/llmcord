@@ -201,10 +201,9 @@ async def on_message(new_msg):
         messages.append(dict(role="system", content=full_system_prompt))
 
     # Generate and send response message(s) (can be multiple if response is long)
+    curr_content = finish_reason = edit_task = None
     response_msgs = []
     response_contents = []
-    prev_chunk = None
-    edit_task = None
 
     embed = discord.Embed()
     for warning in sorted(user_warnings):
@@ -214,15 +213,13 @@ async def on_message(new_msg):
     try:
         async with new_msg.channel.typing():
             async for curr_chunk in await openai_client.chat.completions.create(**kwargs):
-                if prev_chunk != None and prev_chunk.choices[0].finish_reason != None:
+                if finish_reason != None:
                     break
 
-                prev_content = prev_chunk.choices[0].delta.content if prev_chunk != None and prev_chunk.choices[0].delta.content else ""
-                curr_content = curr_chunk.choices[0].delta.content or ""
-
-                prev_chunk = curr_chunk
-
                 finish_reason = curr_chunk.choices[0].finish_reason
+
+                prev_content = curr_content or ""
+                curr_content = curr_chunk.choices[0].delta.content or ""
 
                 new_content = prev_content if finish_reason == None else (prev_content + curr_content)
 
