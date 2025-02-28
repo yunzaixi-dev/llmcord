@@ -75,8 +75,8 @@ async def on_message(new_msg):
     if (not is_dm and discord_client.user not in new_msg.mentions) or new_msg.author.bot:
         return
 
-    role_ids = tuple(role.id for role in getattr(new_msg.author, "roles", ()))
-    channel_ids = tuple(id for id in (new_msg.channel.id, getattr(new_msg.channel, "parent_id", None), getattr(new_msg.channel, "category_id", None)) if id)
+    role_ids = set(role.id for role in getattr(new_msg.author, "roles", ()))
+    channel_ids = set(id for id in (new_msg.channel.id, getattr(new_msg.channel, "parent_id", None), getattr(new_msg.channel, "category_id", None)) if id)
 
     cfg = get_config()
 
