@@ -54,18 +54,24 @@ def validate_config(config):
         logging.error("配置错误: 'model' 不能为空")
         return False
     
-    # 检查模型提供商配置
+    # 检查当前使用的模型提供商配置
     if "/" in model_config:
         provider, _ = model_config.split("/", 1)
+        # 只检查当前使用的提供商是否配置
         if provider not in config["providers"]:
-            logging.error(f"配置错误: 模型提供商 '{provider}' 未在 'providers' 中配置")
+            logging.error(f"配置错误: 当前使用的模型提供商 '{provider}' 未在 'providers' 中配置")
             return False
         
-        # 检查API密钥（对于需要API密钥的提供商）
+        # 检查当前使用的提供商的API密钥（对于需要API密钥的提供商）
         if provider not in ["ollama", "lmstudio", "vllm", "oobabooga", "jan"]:
             if "api_key" not in config["providers"][provider] or not config["providers"][provider]["api_key"]:
-                logging.error(f"配置错误: 提供商 '{provider}' 需要API密钥")
+                logging.error(f"配置错误: 当前使用的提供商 '{provider}' 需要API密钥")
                 return False
+    else:
+        # 如果模型名称中没有指定提供商，则检查是否至少配置了一个提供商
+        if not config["providers"]:
+            logging.error("配置错误: 没有配置任何模型提供商")
+            return False
     
     # 检查权限配置
     if "permissions" in config:
