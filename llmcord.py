@@ -31,11 +31,10 @@ MAX_MESSAGE_NODES = 100
 
 
 def validate_config(config):
-    """校验配置文件的有效性，确保所有必要的配置项都存在且有效"""
+    """校验配置文件的有效性，确保所有必要的配置项都存在且有效，并在必要时添加默认配置"""
     # 必须存在的配置项
     required_fields = [
         "bot_token",
-        "providers",
         "model"
     ]
     
@@ -48,6 +47,11 @@ def validate_config(config):
             logging.error(f"配置错误: 'bot_token' 不能为空")
             return False
     
+    # 确保providers字段存在
+    if "providers" not in config:
+        logging.warning("配置中缺少 'providers' 字段，将使用空字典")
+        config["providers"] = {}
+    
     # 检查模型配置
     model_config = config["model"]
     if not model_config:
@@ -56,22 +60,31 @@ def validate_config(config):
     
     # 检查当前使用的模型提供商配置
     if "/" in model_config:
-        provider, _ = model_config.split("/", 1)
-        # 只检查当前使用的提供商是否配置
+        provider, model_name = model_config.split("/", 1)
+        # 如果当前使用的提供商不在配置中，添加默认配置
         if provider not in config["providers"]:
-            logging.error(f"配置错误: 当前使用的模型提供商 '{provider}' 未在 'providers' 中配置")
-            return False
-        
-        # 检查当前使用的提供商的API密钥（对于需要API密钥的提供商）
-        if provider not in ["ollama", "lmstudio", "vllm", "oobabooga", "jan"]:
-            if "api_key" not in config["providers"][provider] or not config["providers"][provider]["api_key"]:
-                logging.error(f"配置错误: 当前使用的提供商 '{provider}' 需要API密钥")
-                return False
-    else:
-        # 如果模型名称中没有指定提供商，则检查是否至少配置了一个提供商
-        if not config["providers"]:
-            logging.error("配置错误: 没有配置任何模型提供商")
-            return False
+            logging.warning(f"提供商 '{provider}' 未在配置中找到，将使用默认配置")
+            # 为不同提供商设置默认base_url
+            default_base_urls = {
+                "openai": "https://api.openai.com/v1",
+                "x-ai": "https://api.x.ai/v1",
+                "mistral": "https://api.mistral.ai/v1",
+                "groq": "https://api.groq.com/openai/v1",
+                "openrouter": "https://openrouter.ai/api/v1",
+                "ollama": "http://localhost:11434/v1",
+                "lmstudio": "http://localhost:1234/v1",
+                "vllm": "http://localhost:8000/v1",
+                "oobabooga": "http://localhost:5000/v1",
+                "jan": "http://localhost:1337/v1"
+            }
+            
+            config["providers"][provider] = {
+                "base_url": default_base_urls.get(provider, "")
+            }
+            
+            # 对于需要API密钥的提供商，提示用户
+            if provider not in ["ollama", "lmstudio", "vllm", "oobabooga", "jan"]:
+                logging.warning(f"提供商 '{provider}' 通常需要API密钥，请在配置文件中添加")
     
     # 检查权限配置
     if "permissions" in config:
