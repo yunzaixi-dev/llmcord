@@ -3,6 +3,7 @@ from base64 import b64encode
 from dataclasses import dataclass, field
 from datetime import datetime as dt
 import logging
+import sys
 from typing import Literal, Optional
 
 import discord
@@ -29,9 +30,74 @@ EDIT_DELAY_SECONDS = 1
 MAX_MESSAGE_NODES = 100
 
 
+def validate_config(config):
+    """校验配置文件的有效性，确保所有必要的配置项都存在且有效"""
+    # 必须存在的配置项
+    required_fields = [
+        "bot_token",
+        "providers",
+        "model"
+    ]
+    
+    # 检查必要字段是否存在
+    for field in required_fields:
+        if field not in config:
+            logging.error(f"配置错误: 缺少必要的配置项 '{field}'")
+            return False
+        if field == "bot_token" and not config[field]:
+            logging.error(f"配置错误: 'bot_token' 不能为空")
+            return False
+    
+    # 检查模型配置
+    model_config = config["model"]
+    if not model_config:
+        logging.error("配置错误: 'model' 不能为空")
+        return False
+    
+    # 检查模型提供商配置
+    if "/" in model_config:
+        provider, _ = model_config.split("/", 1)
+        if provider not in config["providers"]:
+            logging.error(f"配置错误: 模型提供商 '{provider}' 未在 'providers' 中配置")
+            return False
+        
+        # 检查API密钥（对于需要API密钥的提供商）
+        if provider not in ["ollama", "lmstudio", "vllm", "oobabooga", "jan"]:
+            if "api_key" not in config["providers"][provider] or not config["providers"][provider]["api_key"]:
+                logging.error(f"配置错误: 提供商 '{provider}' 需要API密钥")
+                return False
+    
+    # 检查权限配置
+    if "permissions" in config:
+        for perm_type in ["users", "roles", "channels"]:
+            if perm_type in config["permissions"]:
+                for list_type in ["allowed_ids", "blocked_ids"]:
+                    if list_type in config["permissions"][perm_type]:
+                        if not isinstance(config["permissions"][perm_type][list_type], list):
+                            logging.error(f"配置错误: permissions.{perm_type}.{list_type} 必须是一个列表")
+                            return False
+    
+    logging.info("配置校验通过")
+    return True
+
+
 def get_config(filename="config.yaml"):
-    with open(filename, "r") as file:
-        return yaml.safe_load(file)
+    try:
+        with open(filename, "r") as file:
+            config = yaml.safe_load(file)
+            if not validate_config(config):
+                logging.error(f"配置文件 '{filename}' 校验失败，程序退出")
+                sys.exit(1)
+            return config
+    except FileNotFoundError:
+        logging.error(f"配置文件 '{filename}' 不存在，程序退出")
+        sys.exit(1)
+    except yaml.YAMLError as e:
+        logging.error(f"配置文件 '{filename}' 格式错误: {e}")
+        sys.exit(1)
+    except Exception as e:
+        logging.error(f"加载配置文件 '{filename}' 时发生错误: {e}")
+        sys.exit(1)
 
 
 cfg = get_config()
