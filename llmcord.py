@@ -3,7 +3,6 @@ from base64 import b64encode
 from dataclasses import dataclass, field
 from datetime import datetime as dt
 import logging
-import sys
 from typing import Literal, Optional
 
 import discord
@@ -30,93 +29,9 @@ EDIT_DELAY_SECONDS = 1
 MAX_MESSAGE_NODES = 100
 
 
-def validate_config(config):
-    """校验配置文件的有效性，确保所有必要的配置项都存在且有效，并在必要时添加默认配置"""
-    # 必须存在的配置项
-    required_fields = [
-        "bot_token",
-        "model"
-    ]
-    
-    # 检查必要字段是否存在
-    for field in required_fields:
-        if field not in config:
-            logging.error(f"配置错误: 缺少必要的配置项 '{field}'")
-            return False
-        if field == "bot_token" and not config[field]:
-            logging.error(f"配置错误: 'bot_token' 不能为空")
-            return False
-    
-    # 确保providers字段存在
-    if "providers" not in config:
-        logging.warning("配置中缺少 'providers' 字段，将使用空字典")
-        config["providers"] = {}
-    
-    # 检查模型配置
-    model_config = config["model"]
-    if not model_config:
-        logging.error("配置错误: 'model' 不能为空")
-        return False
-    
-    # 检查当前使用的模型提供商配置
-    if "/" in model_config:
-        provider, model_name = model_config.split("/", 1)
-        # 如果当前使用的提供商不在配置中，添加默认配置
-        if provider not in config["providers"]:
-            logging.warning(f"提供商 '{provider}' 未在配置中找到，将使用默认配置")
-            # 为不同提供商设置默认base_url
-            default_base_urls = {
-                "openai": "https://api.openai.com/v1",
-                "x-ai": "https://api.x.ai/v1",
-                "mistral": "https://api.mistral.ai/v1",
-                "groq": "https://api.groq.com/openai/v1",
-                "openrouter": "https://openrouter.ai/api/v1",
-                "ollama": "http://localhost:11434/v1",
-                "lmstudio": "http://localhost:1234/v1",
-                "vllm": "http://localhost:8000/v1",
-                "oobabooga": "http://localhost:5000/v1",
-                "jan": "http://localhost:1337/v1"
-            }
-            
-            config["providers"][provider] = {
-                "base_url": default_base_urls.get(provider, "")
-            }
-            
-            # 对于需要API密钥的提供商，提示用户
-            if provider not in ["ollama", "lmstudio", "vllm", "oobabooga", "jan"]:
-                logging.warning(f"提供商 '{provider}' 通常需要API密钥，请在配置文件中添加")
-    
-    # 检查权限配置
-    if "permissions" in config:
-        for perm_type in ["users", "roles", "channels"]:
-            if perm_type in config["permissions"]:
-                for list_type in ["allowed_ids", "blocked_ids"]:
-                    if list_type in config["permissions"][perm_type]:
-                        if not isinstance(config["permissions"][perm_type][list_type], list):
-                            logging.error(f"配置错误: permissions.{perm_type}.{list_type} 必须是一个列表")
-                            return False
-    
-    logging.info("配置校验通过")
-    return True
-
-
 def get_config(filename="config.yaml"):
-    try:
-        with open(filename, "r") as file:
-            config = yaml.safe_load(file)
-            if not validate_config(config):
-                logging.error(f"配置文件 '{filename}' 校验失败，程序退出")
-                sys.exit(1)
-            return config
-    except FileNotFoundError:
-        logging.error(f"配置文件 '{filename}' 不存在，程序退出")
-        sys.exit(1)
-    except yaml.YAMLError as e:
-        logging.error(f"配置文件 '{filename}' 格式错误: {e}")
-        sys.exit(1)
-    except Exception as e:
-        logging.error(f"加载配置文件 '{filename}' 时发生错误: {e}")
-        sys.exit(1)
+    with open(filename, "r") as file:
+        return yaml.safe_load(file)
 
 
 cfg = get_config()
